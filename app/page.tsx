@@ -1,103 +1,358 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { 
+  Upload, 
+  MapPin, 
+  Heart, 
+  Users, 
+  Package, 
+  Globe,
+  ArrowRight,
+  CheckCircle
+} from 'lucide-react';
+import { useAuth } from '@/app/contexts/AuthContext';
+
+export default function HomePage() {
+  const { isAuthenticated, user } = useAuth();
+  const [impactStats, setImpactStats] = useState({
+    foodSaved: 0,
+    donations: 0,
+    volunteers: 0,
+    ngos: 0
+  });
+
+  useEffect(() => {
+    // Animate counters on mount
+    const animateCounters = () => {
+      const targets = {
+        foodSaved: 15420,
+        donations: 2847,
+        volunteers: 156,
+        ngos: 23
+      };
+
+      const duration = 2000;
+      const steps = 60;
+      const stepDuration = duration / steps;
+
+      let currentStep = 0;
+
+      const interval = setInterval(() => {
+        currentStep++;
+        const progress = currentStep / steps;
+
+        setImpactStats({
+          foodSaved: Math.floor(targets.foodSaved * progress),
+          donations: Math.floor(targets.donations * progress),
+          volunteers: Math.floor(targets.volunteers * progress),
+          ngos: Math.floor(targets.ngos * progress)
+        });
+
+        if (currentStep >= steps) {
+          clearInterval(interval);
+        }
+      }, stepDuration);
+
+      return () => clearInterval(interval);
+    };
+
+    animateCounters();
+  }, []);
+
+  const workflowSteps = [
+    {
+      icon: Upload,
+      title: 'Upload Food',
+      description: 'Take a photo of your surplus food and let AI classify it automatically',
+      color: 'bg-blue-500'
+    },
+    {
+      icon: MapPin,
+      title: 'Track Pickup',
+      description: 'Volunteers will pick up your donation and deliver it to those in need',
+      color: 'bg-green-500'
+    },
+    {
+      icon: Heart,
+      title: 'Create Impact',
+      description: 'Your food reaches people who need it most, reducing waste and hunger',
+      color: 'bg-purple-500'
+    }
+  ];
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-green-600/20 to-blue-600/20" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+          <div className="text-center">
+            <motion.h1 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="text-5xl md:text-7xl font-bold text-gray-900 mb-6"
+            >
+              Zero Food Hero
+            </motion.h1>
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto"
+            >
+              Connect surplus food with people who need it most. 
+              Powered by AI to reduce waste and fight hunger.
+            </motion.p>
+            
+            {/* Impact Counter */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 mb-12 shadow-xl"
+            >
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                <div className="text-center">
+                  <div className="text-3xl md:text-4xl font-bold text-green-600 mb-2">
+                    {impactStats.foodSaved.toLocaleString()} kg
+                  </div>
+                  <div className="text-gray-600">Food Saved</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl md:text-4xl font-bold text-blue-600 mb-2">
+                    {impactStats.donations.toLocaleString()}
+                  </div>
+                  <div className="text-gray-600">Donations</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl md:text-4xl font-bold text-purple-600 mb-2">
+                    {impactStats.volunteers}
+                  </div>
+                  <div className="text-gray-600">Volunteers</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl md:text-4xl font-bold text-orange-600 mb-2">
+                    {impactStats.ngos}
+                  </div>
+                  <div className="text-gray-600">Partner NGOs</div>
+                </div>
+              </div>
+            </motion.div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            {/* CTA Buttons */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+              className="flex flex-col sm:flex-row gap-4 justify-center"
+            >
+              {isAuthenticated ? (
+                <>
+                  {/* Only show role-specific CTAs if user has a role */}
+                  {user?.role === 'donor' && (
+                    <Link 
+                      href="/donor/dashboard"
+                      className="inline-flex items-center px-8 py-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-lg"
+                    >
+                      <Upload className="w-5 h-5 mr-2" />
+                      Donate Food
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </Link>
+                  )}
+                  {user?.role === 'volunteer' && (
+                    <Link 
+                      href="/volunteer/hub"
+                      className="inline-flex items-center px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                    >
+                      <Users className="w-5 h-5 mr-2" />
+                      Become Volunteer
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </Link>
+                  )}
+                  {user?.role === 'ngo' && (
+                    <Link 
+                      href="/ngo/portal"
+                      className="inline-flex items-center px-8 py-4 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors shadow-lg"
+                    >
+                      <Users className="w-5 h-5 mr-2" />
+                      NGO Portal
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </Link>
+                  )}
+                  {/* If no role, show choose role CTA */}
+                  {!user?.role && (
+                    <Link 
+                      href="/auth/role-selection"
+                      className="inline-flex items-center px-8 py-4 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors shadow-lg"
+                    >
+                      <Users className="w-5 h-5 mr-2" />
+                      Choose Your Role
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </Link>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Link 
+                    href="/auth/signup"
+                    className="inline-flex items-center px-8 py-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-lg"
+                  >
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Get Started
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Link>
+                  <Link 
+                    href="/auth/signin"
+                    className="inline-flex items-center px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                  >
+                    <Users className="w-5 h-5 mr-2" />
+                    Sign In
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Link>
+                </>
+              )}
+            </motion.div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              How It Works
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Three simple steps to make a difference in your community
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {workflowSteps.map((step, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.2 }}
+                viewport={{ once: true }}
+                className="text-center group"
+              >
+                <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full ${step.color} text-white mb-6 group-hover:scale-110 transition-transform`}>
+                  <step.icon className="w-10 h-10" />
+                </div>
+                <h3 className="text-2xl font-semibold text-gray-900 mb-4">
+                  {step.title}
+                </h3>
+                <p className="text-gray-600 leading-relaxed">
+                  {step.description}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Why Choose Zero Food Hero?
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Advanced technology meets human compassion
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+              className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow"
+            >
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                <Package className="w-6 h-6 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                AI-Powered Classification
+              </h3>
+              <p className="text-gray-600">
+                Our advanced AI automatically identifies and categorizes food items from photos, making donation easy and accurate.
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              viewport={{ once: true }}
+              className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow"
+            >
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                <MapPin className="w-6 h-6 text-green-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                Real-Time Tracking
+              </h3>
+              <p className="text-gray-600">
+                Track your donation from pickup to delivery with real-time updates and GPS location tracking.
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              viewport={{ once: true }}
+              className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow"
+            >
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                <Globe className="w-6 h-6 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                Community Impact
+              </h3>
+              <p className="text-gray-600">
+                Join a network of volunteers and NGOs working together to reduce food waste and help those in need.
+              </p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer CTA */}
+      <section className="py-20 bg-green-600">
+        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+            Ready to Make a Difference?
+          </h2>
+          <p className="text-xl text-green-100 mb-8">
+            Join thousands of people already helping to reduce food waste and feed communities.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link 
+              href="/auth/signup"
+              className="inline-flex items-center px-8 py-4 bg-white text-green-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <CheckCircle className="w-5 h-5 mr-2" />
+              Get Started Today
+            </Link>
+            <Link 
+              href="/about"
+              className="inline-flex items-center px-8 py-4 border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-green-600 transition-colors"
+            >
+              Learn More
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
