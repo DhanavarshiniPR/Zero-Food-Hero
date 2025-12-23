@@ -150,3 +150,5 @@ If you encounter issues during deployment:
 - Ensure all dependencies are listed in `package.json`
 - Check Next.js documentation: https://nextjs.org/docs/deployment
 
+
+
