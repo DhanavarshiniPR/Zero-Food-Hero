@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
   MapPin, 
@@ -36,43 +36,11 @@ export default function MyMissions() {
   const [activeMissions, setActiveMissions] = useState<(Donation & { distance: number })[]>([]);
   const [completedMissions, setCompletedMissions] = useState<(Donation & { distance: number })[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedMission, setSelectedMission] = useState<Donation | null>(null);
   const [volunteerLocation, setVolunteerLocation] = useState<Location | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'picked' | 'in_transit' | 'delivered'>('all');
 
-  // Check authentication
-  useEffect(() => {
-    if (!authLoading) {
-      if (!isAuthenticated || !user) {
-        router.push('/auth/signin');
-        return;
-      }
-      if (user.role !== 'volunteer') {
-        router.push('/');
-        return;
-      }
-    }
-  }, [isAuthenticated, user, authLoading, router]);
-
-  // Load volunteer's location from localStorage
-  useEffect(() => {
-    const savedLocation = localStorage.getItem('volunteerLocation');
-    if (savedLocation) {
-      try {
-        setVolunteerLocation(JSON.parse(savedLocation));
-      } catch (error) {
-        console.error('Error parsing saved location:', error);
-      }
-    }
-  }, []);
-
-  // Load missions
-  useEffect(() => {
-    loadMissions();
-  }, [volunteerLocation, user]);
-
-  const loadMissions = () => {
+  const loadMissions = useCallback(() => {
     if (!user) return;
     
     setIsLoading(true);
@@ -112,7 +80,38 @@ export default function MyMissions() {
       setCompletedMissions(completed);
       setIsLoading(false);
     }, 300);
-  };
+  }, [user, volunteerLocation]);
+
+  // Check authentication
+  useEffect(() => {
+    if (!authLoading) {
+      if (!isAuthenticated || !user) {
+        router.push('/auth/signin');
+        return;
+      }
+      if (user.role !== 'volunteer') {
+        router.push('/');
+        return;
+      }
+    }
+  }, [isAuthenticated, user, authLoading, router]);
+
+  // Load volunteer's location from localStorage
+  useEffect(() => {
+    const savedLocation = localStorage.getItem('volunteerLocation');
+    if (savedLocation) {
+      try {
+        setVolunteerLocation(JSON.parse(savedLocation));
+      } catch (error) {
+        console.error('Error parsing saved location:', error);
+      }
+    }
+  }, []);
+
+  // Load missions
+  useEffect(() => {
+    loadMissions();
+  }, [loadMissions]);
 
   const handleUpdateStatus = async (missionId: string, newStatus: 'in_transit' | 'delivered') => {
     setIsLoading(true);
@@ -197,7 +196,7 @@ export default function MyMissions() {
               <label className="block text-sm font-medium text-gray-700 mb-2">Status Filter</label>
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
+                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'picked' | 'in_transit' | 'delivered')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Status</option>

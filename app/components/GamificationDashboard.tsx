@@ -3,13 +3,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Trophy,
-  Users,
-  Target,
-  Crown,
-  Medal,
-  Gift,
-  Calendar,
   BarChart3
 } from 'lucide-react';
 
@@ -21,24 +14,13 @@ import {
 } from '@/app/lib/gamification';
 
 import { useAuth } from '@/app/contexts/AuthContext';
-import { useNotifications } from '@/app/contexts/NotificationContext';
 
 export default function GamificationDashboard() {
   const { user } = useAuth();
-  const { addNotification } = useNotifications();
 
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [currentLevel, setCurrentLevel] = useState<UserLevel | null>(null);
   const [nextLevel, setNextLevel] = useState<UserLevel | null>(null);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'achievements' | 'leaderboard'>('overview');
-
-  useEffect(() => {
-    if (user) {
-      loadUserStats();
-      setLeaderboard(gamificationService.getLeaderboard());
-    }
-  }, [user]);
 
   const loadUserStats = () => {
     if (!user) return;
@@ -48,6 +30,12 @@ export default function GamificationDashboard() {
     setCurrentLevel(gamificationService.getCurrentLevel(user.id));
     setNextLevel(gamificationService.getNextLevel(user.id));
   };
+
+  useEffect(() => {
+    if (user) {
+      loadUserStats();
+    }
+  }, [user]);
 
   const unlockedAchievements =
     userStats?.achievements.filter(a => a.unlocked) || [];

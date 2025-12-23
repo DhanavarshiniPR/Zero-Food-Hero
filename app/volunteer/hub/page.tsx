@@ -276,12 +276,10 @@ export default function VolunteerHub() {
     if (filterLocation) {
       const filterLower = filterLocation.toLowerCase();
       const donationAddress = donation.location?.address?.toLowerCase() || '';
-      const donationCity = donation.location?.city?.toLowerCase() || '';
       
       // Check if filter location matches donation address (fuzzy matching)
       matchesLocation = 
         donationAddress.includes(filterLower) ||
-        donationCity.includes(filterLower) ||
         LocationService.addressesMatch(filterLocation, donation.location?.address || '');
     }
     

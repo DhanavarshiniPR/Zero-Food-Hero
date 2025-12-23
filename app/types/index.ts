@@ -135,3 +135,5 @@ export interface MapPin {
   description: string;
   status?: DonationStatus;
 } 
+
+declare module 'lucide-react';
