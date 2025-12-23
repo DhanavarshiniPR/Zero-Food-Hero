@@ -408,6 +408,22 @@ export default function NGOPortalPage() {
                         </div>
 
                         <div className="flex space-x-2">
+                          {donation.status === 'available' && (
+                            <button
+                              onClick={() => {
+                                donationStorage.updateDonation(donation.id, {
+                                  ngoId: user?.id,
+                                  ngoName: user?.name,
+                                  status: 'ordered'
+                                });
+                                loadDonations(); // Refresh the list
+                                // TODO: Add notification to donor
+                              }}
+                              className="bg-blue-600 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-700 transition-colors"
+                            >
+                              Order
+                            </button>
+                          )}
                           {donation.status === 'picked' && (
                             <button
                               onClick={() => {
