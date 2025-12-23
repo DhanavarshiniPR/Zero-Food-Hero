@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import UserActivityTracker from '@/app/components/UserActivityTracker';
+import { UserRole } from '@/app/types';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -274,12 +275,12 @@ export default function ProfilePage() {
                       Role
                     </label>
                     <div className="grid grid-cols-3 gap-3">
-                      {['donor', 'volunteer', 'ngo'].map((role) => {
+                      {(['donor', 'volunteer', 'ngo'] as UserRole[]).map((role) => {
                         const RoleIcon = getRoleIcon(role);
                         return (
                           <button
                             key={role}
-                            onClick={() => isEditing && setProfileData({ ...profileData, role })}
+                            onClick={() => isEditing && setProfileData({ ...profileData, role: role as UserRole })}
                             disabled={!isEditing}
                             className={`flex items-center space-x-2 p-3 rounded-lg border-2 transition-colors ${
                               profileData.role === role

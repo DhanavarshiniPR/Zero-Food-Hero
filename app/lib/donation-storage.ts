@@ -73,9 +73,7 @@ class DonationStorageService {
         // Convert Date objects to ISO strings for serialization
         createdAt: donation.createdAt.toISOString(),
         updatedAt: donation.updatedAt.toISOString(),
-        expiry: donation.expiry ? donation.expiry.toISOString() : null,
-        // Ensure any other Date objects are also converted
-        ...(donation.pickupTime && { pickupTime: donation.pickupTime.toISOString() })
+        expiry: donation.expiry ? donation.expiry.toISOString() : null
       }));
       
       safeLocalStorage.setItem(this.STORAGE_KEY, JSON.stringify(serializableDonations));
@@ -101,11 +99,8 @@ class DonationStorageService {
         hasExpired = true;
       }
       
-      // Only return non-expired donations (or expired ones that are already in transit/delivered)
-      if (donation.status !== 'expired' || 
-          donation.status === 'in_transit' || 
-          donation.status === 'picked' || 
-          donation.status === 'delivered') {
+      // Only return non-expired donations (donations in transit/delivered are already not expired)
+      if (donation.status !== 'expired') {
         validDonations.push(donation);
       }
     });

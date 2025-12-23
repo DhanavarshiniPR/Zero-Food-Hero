@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
+  swcMinify: false,
+  experimental: {
+    forceSwcTransforms: false,
+  },
 };
 
-module.exports = nextConfig; 
+module.exports = nextConfig;

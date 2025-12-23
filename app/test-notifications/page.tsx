@@ -9,36 +9,32 @@ export default function TestNotificationsPage() {
 
   const testNotifications = () => {
     addNotification({
-      type: 'success',
+      type: 'system',
       title: 'Success!',
       message: 'This is a success notification',
-      duration: 3000,
     });
 
     setTimeout(() => {
       addNotification({
-        type: 'error',
+        type: 'system',
         title: 'Error!',
         message: 'This is an error notification',
-        duration: 4000,
       });
     }, 500);
 
     setTimeout(() => {
       addNotification({
-        type: 'warning',
+        type: 'system',
         title: 'Warning!',
         message: 'This is a warning notification',
-        duration: 5000,
       });
     }, 1000);
 
     setTimeout(() => {
       addNotification({
-        type: 'info',
+        type: 'system',
         title: 'Info!',
         message: 'This is an info notification',
-        duration: 6000,
       });
     }, 1500);
   };

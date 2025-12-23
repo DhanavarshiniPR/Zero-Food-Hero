@@ -120,17 +120,15 @@ export default function SettingsPage() {
     try {
       await saveSettings();
       addNotification({
-        type: 'success',
+        type: 'system',
         title: 'Settings Saved',
         message: 'Your settings have been saved successfully!',
-        duration: 3000,
       });
     } catch (error) {
       addNotification({
-        type: 'error',
+        type: 'system',
         title: 'Error',
         message: 'Failed to save settings. Please try again.',
-        duration: 5000,
       });
     }
   };
@@ -138,20 +136,18 @@ export default function SettingsPage() {
   const handlePasswordChange = async () => {
     if (passwords.new !== passwords.confirm) {
       addNotification({
-        type: 'error',
+        type: 'system',
         title: 'Password Mismatch',
         message: 'New passwords do not match!',
-        duration: 5000,
       });
       return;
     }
     
     if (passwords.new.length < 8) {
       addNotification({
-        type: 'error',
+        type: 'system',
         title: 'Weak Password',
         message: 'Password must be at least 8 characters long!',
-        duration: 5000,
       });
       return;
     }
@@ -160,18 +156,16 @@ export default function SettingsPage() {
       // Simulate password change
       await new Promise(resolve => setTimeout(resolve, 1000));
       addNotification({
-        type: 'success',
+        type: 'system',
         title: 'Password Changed',
         message: 'Your password has been changed successfully!',
-        duration: 3000,
       });
       setPasswords({ current: '', new: '', confirm: '' });
     } catch (error) {
       addNotification({
-        type: 'error',
+        type: 'system',
         title: 'Error',
         message: 'Failed to change password. Please try again.',
-        duration: 5000,
       });
     }
   };

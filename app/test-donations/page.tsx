@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import { donationStorage } from '@/app/lib/donation-storage';
-import { Donation } from '@/app/types';
+import { Donation, FoodCategory } from '@/app/types';
 import { formatDate, generateReadableQRCode, generateQRCode, generateSimpleQRCode } from '@/app/lib/utils';
 import { useAuth } from '@/app/contexts/AuthContext';
 
@@ -64,11 +64,11 @@ export default function TestDonations() {
   };
 
   const addMultipleTestDonations = () => {
-    const testDonations = [
+    const testDonations: Donation[] = [
       {
         id: `TEST-RICE-${Date.now()}`,
         foodType: 'Rice',
-        foodCategory: 'other',
+        foodCategory: 'other' as FoodCategory,
         quantity: 2,
         unit: 'kg',
         expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
@@ -89,7 +89,7 @@ export default function TestDonations() {
       {
         id: `TEST-BREAD-${Date.now()}`,
         foodType: 'Bread',
-        foodCategory: 'bread',
+        foodCategory: 'bread' as FoodCategory,
         quantity: 3,
         unit: 'loaf',
         expiry: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
@@ -110,7 +110,7 @@ export default function TestDonations() {
       {
         id: `TEST-VEGETABLES-${Date.now()}`,
         foodType: 'Fresh Vegetables',
-        foodCategory: 'vegetables',
+        foodCategory: 'vegetables' as FoodCategory,
         quantity: 1,
         unit: 'kg',
         expiry: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now

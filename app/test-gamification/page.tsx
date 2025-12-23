@@ -13,7 +13,6 @@ import {
   Crown,
   Medal,
   Gift,
-  Fire,
   Calendar,
   BarChart3,
   Plus,
