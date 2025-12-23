@@ -213,6 +213,14 @@ export default function HomePage() {
                     Sign In
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Link>
+                  <Link 
+                    href="/ngo/food-availability"
+                    className="inline-flex items-center px-8 py-4 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors shadow-lg"
+                  >
+                    <Package className="w-5 h-5 mr-2" />
+                    Receive Food
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Link>
                 </>
               )}
             </motion.div>
@@ -324,6 +332,117 @@ export default function HomePage() {
               </p>
             </motion.div>
           </div>
+        </div>
+      </section>
+
+      {/* Awareness & Community Building Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Food Waste Awareness
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Understanding the impact and taking action together
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 mb-12">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="bg-red-50 border border-red-200 rounded-xl p-8"
+            >
+              <h3 className="text-2xl font-bold text-red-900 mb-4">Food Waste Facts</h3>
+              <ul className="space-y-3 text-gray-700">
+                <li className="flex items-start">
+                  <span className="text-red-600 mr-2">•</span>
+                  <span><strong>1.3 billion tons</strong> of food is wasted globally each year</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-red-600 mr-2">•</span>
+                  <span><strong>30-40%</strong> of food in the US goes uneaten</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-red-600 mr-2">•</span>
+                  <span>Food waste contributes to <strong>8%</strong> of global greenhouse gas emissions</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-red-600 mr-2">•</span>
+                  <span>If food waste were a country, it would be the <strong>3rd largest</strong> emitter</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-red-600 mr-2">•</span>
+                  <span><strong>870 million</strong> people go hungry while we waste food</span>
+                </li>
+              </ul>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="bg-green-50 border border-green-200 rounded-xl p-8"
+            >
+              <h3 className="text-2xl font-bold text-green-900 mb-4">Tips to Reduce Waste</h3>
+              <ul className="space-y-3 text-gray-700">
+                <li className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
+                  <span><strong>Plan meals</strong> and buy only what you need</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
+                  <span><strong>Store food properly</strong> to extend freshness</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
+                  <span><strong>Donate surplus</strong> food before it expires</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
+                  <span><strong>Compost</strong> food scraps that can't be donated</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
+                  <span><strong>Share meals</strong> with neighbors and community</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
+                  <span><strong>Support</strong> local food recovery programs</span>
+                </li>
+              </ul>
+            </motion.div>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="bg-gradient-to-r from-green-600 to-blue-600 rounded-xl p-8 text-white text-center"
+          >
+            <h3 className="text-2xl font-bold mb-4">Building a Zero-Waste Mindset</h3>
+            <p className="text-lg mb-6 max-w-3xl mx-auto">
+              Every small action counts. By working together, we can create a sustainable future where 
+              no food goes to waste and everyone has access to nutritious meals. Join our community 
+              and be part of the solution!
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link 
+                href="/auth/signup"
+                className="inline-flex items-center px-6 py-3 bg-white text-green-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                Join the Movement
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Link>
+              <Link 
+                href="/about"
+                className="inline-flex items-center px-6 py-3 border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-green-600 transition-colors"
+              >
+                Learn More
+              </Link>
+            </div>
+          </motion.div>
         </div>
       </section>
 

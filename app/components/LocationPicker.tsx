@@ -70,12 +70,23 @@ export default function LocationPicker({
     setError(null);
 
     try {
+      // Always geocode to get coordinates, but accept the typed address
       const location = await LocationService.geocodeAddress(address);
+      // Ensure the original typed address is preserved
+      location.address = address.trim();
       setGeocodedLocation(location);
       onLocationSelect(location);
       setShowSuggestions(false);
     } catch (err) {
-      setError('Failed to geocode address. Please try again.');
+      // Even if geocoding fails, accept the address with default coordinates
+      const defaultLocation: Location = {
+        ...LocationService.generateCoordinatesFromAddress(address),
+        address: address.trim(),
+        country: 'USA'
+      };
+      setGeocodedLocation(defaultLocation);
+      onLocationSelect(defaultLocation);
+      setShowSuggestions(false);
     } finally {
       setIsGeocoding(false);
     }
@@ -133,7 +144,13 @@ export default function LocationPicker({
               type="text"
               value={address}
               onChange={handleAddressChange}
-              placeholder={placeholder}
+              onBlur={() => {
+                // Auto-accept address when user leaves the field (if address is provided)
+                if (address.trim() && !geocodedLocation) {
+                  handleGeocode();
+                }
+              }}
+              placeholder={placeholder || "Type location (e.g., Coimbatore, Chennai, Bangalore)..."}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               onFocus={() => setShowSuggestions(true)}
             />

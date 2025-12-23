@@ -138,20 +138,32 @@ export default function VolunteerDeliveries() {
   };
 
   const getDeliveryInstructions = (donation: Donation) => {
-    // If this is an ordered donation, get the actual NGO order information
-    if (donation.status === 'ordered') {
+    // If donation has NGO location (ordered by NGO), use that
+    if (donation.ngoLocation && donation.ngoName) {
+      return {
+        recipientName: donation.ngoName || 'NGO Organization',
+        recipientPhone: '+1 (555) NGO-HELP', // In real app, this would be stored in user profile
+        recipientEmail: 'contact@ngo.org', // In real app, this would be stored in user profile
+        deliveryAddress: donation.ngoLocation.address,
+        deliveryInstructions: 'Please deliver to the NGO location. Contact the organization upon arrival.',
+        preferredDeliveryTime: '9:00 AM - 5:00 PM'
+      };
+    }
+    
+    // If this is an ordered donation but ngoLocation is missing, try to get from localStorage orders
+    if (donation.status === 'ordered' && donation.ngoName) {
       try {
         const savedOrders = JSON.parse(localStorage.getItem('ngoOrders') || '[]');
         const order = savedOrders.find((order: any) => 
-          order.items.some((item: any) => item.donationId === donation.id)
+          order.ngoId === donation.ngoId && order.deliveryAddress
         );
         
-        if (order) {
+        if (order && order.deliveryAddress) {
           return {
-            recipientName: order.ngoName || 'NGO Organization',
-            recipientPhone: '+1 (555) NGO-HELP', // In real app, this would be stored in order
-            recipientEmail: 'contact@ngo.org', // In real app, this would be stored in order
-            deliveryAddress: order.deliveryAddress || 'NGO Address',
+            recipientName: donation.ngoName || 'NGO Organization',
+            recipientPhone: '+1 (555) NGO-HELP',
+            recipientEmail: 'contact@ngo.org',
+            deliveryAddress: order.deliveryAddress,
             deliveryInstructions: 'Please deliver to the NGO location. Contact the organization upon arrival.',
             preferredDeliveryTime: '9:00 AM - 5:00 PM'
           };
@@ -161,12 +173,12 @@ export default function VolunteerDeliveries() {
       }
     }
     
-    // For picked donations (not ordered), use default delivery instructions
+    // For picked donations without NGO (not ordered), use default delivery instructions
     return {
       recipientName: 'Community Food Bank',
       recipientPhone: '+1 (555) 123-4567',
       recipientEmail: 'contact@communityfoodbank.org',
-      deliveryAddress: '123 Hope Street, Mississippi, MS 39201',
+      deliveryAddress: donation.location.address, // Use donor location as fallback
       deliveryInstructions: 'Please deliver to the back entrance. Ring the bell and someone will come to receive the donation.',
       preferredDeliveryTime: '9:00 AM - 5:00 PM'
     };
@@ -375,10 +387,25 @@ export default function VolunteerDeliveries() {
                         {/* Distance Information */}
                         {volunteerLocation && (
                           <div className="flex items-center space-x-4 text-sm text-gray-600">
-                            <div className="flex items-center space-x-2">
-                              <Navigation className="w-4 h-4" />
-                              <span>{LocationService.formatDistance(donation.distance)} to delivery</span>
-                            </div>
+                            {donation.ngoLocation && (
+                              <div className="flex items-center space-x-2">
+                                <Navigation className="w-4 h-4" />
+                                <span>Delivery Distance: {LocationService.formatDistance(
+                                  LocationService.calculateDistance(
+                                    volunteerLocation.lat,
+                                    volunteerLocation.lng,
+                                    donation.ngoLocation.lat,
+                                    donation.ngoLocation.lng
+                                  )
+                                )}</span>
+                              </div>
+                            )}
+                            {!donation.ngoLocation && (
+                              <div className="flex items-center space-x-2">
+                                <Navigation className="w-4 h-4" />
+                                <span>Distance: {LocationService.formatDistance(donation.distance)}</span>
+                              </div>
+                            )}
                             <div className="flex items-center space-x-2">
                               <Clock className="w-4 h-4" />
                               <span>{LocationService.getEstimatedTravelTime(donation.distance)} travel time</span>

@@ -13,38 +13,34 @@ export interface UserActivity {
   metadata?: any;
 }
 
+const isServer = typeof window === 'undefined';
+
 class UserStorageService {
   private readonly STORAGE_KEY = 'zeroFoodHero_users';
   private readonly CURRENT_USER_KEY = 'zeroFoodHero_currentUser';
 
+  private getStorage() {
+    if (isServer) {
+      return {
+        getItem: () => null,
+        setItem: () => {},
+        removeItem: () => {}
+      };
+    }
+    return localStorage;
+  }
+
   // Get all stored users
   private getStoredUsers(): StoredUser[] {
-    if (typeof window === 'undefined') return [];
-    
-    try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
-      if (!stored) return [];
-      
-      const users = JSON.parse(stored);
-      // Convert date strings back to Date objects
-      return users.map((user: any) => ({
-        ...user,
-        createdAt: new Date(user.createdAt),
-        activities: user.activities?.map((activity: any) => ({
-          ...activity,
-          timestamp: new Date(activity.timestamp)
-        })) || []
-      }));
-    } catch (error) {
-      console.error('Error parsing stored users:', error);
-      return [];
-    }
+    if (isServer) return [];
+    const usersJson = this.getStorage().getItem(this.STORAGE_KEY);
+    return usersJson ? JSON.parse(usersJson) : [];
   }
 
   // Save all users to storage
   private saveUsers(users: StoredUser[]): void {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(users));
+    if (isServer) return;
+    this.getStorage().setItem(this.STORAGE_KEY, JSON.stringify(users));
   }
 
   // Check if email already exists
@@ -121,18 +117,11 @@ class UserStorageService {
   }
 
   // Get current user from session
-  public getCurrentUser(): User | null {
-    if (typeof window === 'undefined') return null;
-    
+  public getCurrentUser(): StoredUser | null {
+    if (isServer) return null;
+    const userJson = this.getStorage().getItem(this.CURRENT_USER_KEY);
     try {
-      const stored = localStorage.getItem(this.CURRENT_USER_KEY);
-      if (!stored) return null;
-      
-      const user = JSON.parse(stored);
-      return {
-        ...user,
-        createdAt: new Date(user.createdAt)
-      };
+      return userJson ? JSON.parse(userJson) : null;
     } catch (error) {
       console.error('Error parsing current user:', error);
       return null;
@@ -141,14 +130,14 @@ class UserStorageService {
 
   // Set current user in session
   public setCurrentUser(user: User): void {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
+    if (isServer) return;
+    this.getStorage().setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
   }
 
   // Clear current user session
   public clearCurrentUser(): void {
-    if (typeof window === 'undefined') return;
-    localStorage.removeItem(this.CURRENT_USER_KEY);
+    if (isServer) return;
+    this.getStorage().removeItem(this.CURRENT_USER_KEY);
   }
 
   // Update user data
@@ -224,6 +213,23 @@ class UserStorageService {
       isValid: errors.length === 0,
       errors
     };
+  }
+
+  // Get all users (for admin)
+  public getAllUsers(): User[] {
+    const users = this.getStoredUsers();
+    // Return users without passwords
+    return users.map(({ password, activities, ...user }) => ({
+      ...user,
+      createdAt: new Date(user.createdAt)
+    }));
+  }
+
+  // Delete user (for admin)
+  public deleteUser(userId: string): void {
+    const users = this.getStoredUsers();
+    const filteredUsers = users.filter(u => u.id !== userId);
+    this.saveUsers(filteredUsers);
   }
 }
 

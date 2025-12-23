@@ -18,7 +18,7 @@ import { gamificationService } from '@/app/lib/gamification';
 
 interface SocialShareProps {
   impact?: {
-    foodSaved: number;
+    totalFoodSaved: number;
     mealsProvided: number;
     co2Saved: number;
     totalDonations: number;
@@ -33,7 +33,7 @@ export default function SocialShare({ impact, className = '' }: SocialShareProps
   const [shared, setShared] = useState<string[]>([]);
 
   const defaultImpact = {
-    foodSaved: 25.5,
+    totalFoodSaved: 25.5,
     mealsProvided: 51,
     co2Saved: 63.75,
     totalDonations: 12
@@ -41,7 +41,7 @@ export default function SocialShare({ impact, className = '' }: SocialShareProps
 
   const currentImpact = impact || defaultImpact;
 
-  const shareText = `🌱 I've saved ${currentImpact.foodSaved}kg of food from waste with Zero Food Hero! 
+  const shareText = `🌱 I've saved ${currentImpact.totalFoodSaved}kg of food from waste with Zero Food Hero! 
   
 🍽️ That's ${currentImpact.mealsProvided} meals provided to people in need
 🌍 And ${currentImpact.co2Saved}kg of CO₂ emissions avoided
@@ -148,7 +148,7 @@ Join me in fighting food waste and hunger! #ZeroFoodHero #FoodWaste #Sustainabil
       <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4 mb-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
           <div>
-            <div className="text-xl font-bold text-green-600">{currentImpact.foodSaved}kg</div>
+            <div className="text-xl font-bold text-green-600">{currentImpact.totalFoodSaved}kg</div>
             <div className="text-sm text-gray-600">Food Saved</div>
           </div>
           <div>

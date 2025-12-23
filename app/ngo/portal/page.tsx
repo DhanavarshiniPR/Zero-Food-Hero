@@ -15,13 +15,15 @@ import {
   AlertCircle,
   Plus,
   Filter,
-  Search
+  Search,
+  Loader2
 } from 'lucide-react';
 import { Donation, NGO, ImpactStats } from '@/app/types';
 import { formatDate, formatDateTime, getStatusColor } from '@/app/lib/utils';
 import jsPDF from 'jspdf';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { donationStorage } from '@/app/lib/donation-storage';
 
 // Mock data for demonstration
 const mockDonations: Donation[] = [
@@ -92,16 +94,48 @@ export default function NGOPortalPage() {
         router.push('/');
         return;
       }
+      // Load donations from storage
+      loadDonations();
     }
   }, [isAuthenticated, user, loading, router]);
 
-  const [donations, setDonations] = useState<Donation[]>(mockDonations);
+  const loadDonations = () => {
+    try {
+      setIsLoading(true);
+      const allDonations = donationStorage.getAllDonations();
+      
+      // Show all donations that are available, pending, ordered, picked, or delivered to this NGO
+      const ngoDonations = allDonations.filter(donation => 
+        donation.status === 'available' ||
+        donation.status === 'pending' ||
+        donation.status === 'ordered' ||
+        (donation.ngoId === user?.id && (donation.status === 'picked' || donation.status === 'delivered'))
+      );
+      
+      setDonations(ngoDonations);
+      
+      // Set new alerts for recent available donations (last 5)
+      const recentAvailable = allDonations
+        .filter(d => d.status === 'available')
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, 5);
+      setNewAlerts(recentAvailable);
+      
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Error loading donations:', err);
+      setIsLoading(false);
+    }
+  };
+
+  const [donations, setDonations] = useState<Donation[]>([]);
   const [impactStats, setImpactStats] = useState<ImpactStats>(mockImpactStats);
   const [newAlerts, setNewAlerts] = useState<Donation[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showDistributionForm, setShowDistributionForm] = useState(false);
   const [selectedDonation, setSelectedDonation] = useState<Donation | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Simulate real-time alerts
@@ -280,14 +314,24 @@ export default function NGOPortalPage() {
             <div className="bg-white rounded-xl shadow-lg p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">Donations Management</h2>
-                <button
-                  onClick={generateImpactReport}
-                  className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  Generate Report
-                  <Download className="w-4 h-4 ml-2" />
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={loadDonations}
+                    className="flex items-center bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+                    title="Refresh donations"
+                  >
+                    <Search className="w-4 h-4 mr-2" />
+                    Refresh
+                  </button>
+                  <button
+                    onClick={generateImpactReport}
+                    className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Generate Report
+                    <Download className="w-4 h-4 ml-2" />
+                  </button>
+                </div>
               </div>
 
               {/* Filters */}
@@ -319,10 +363,21 @@ export default function NGOPortalPage() {
 
               {/* Donations List */}
               <div className="space-y-4">
-                {filteredDonations.length === 0 ? (
+                {isLoading ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="w-12 h-12 text-gray-400 mx-auto mb-4 animate-spin" />
+                    <p className="text-gray-500">Loading donations...</p>
+                  </div>
+                ) : filteredDonations.length === 0 ? (
                   <div className="text-center py-8">
                     <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500">No donations found</p>
+                    <button
+                      onClick={loadDonations}
+                      className="mt-4 text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      Refresh
+                    </button>
                   </div>
                 ) : (
                   filteredDonations.map((donation) => (

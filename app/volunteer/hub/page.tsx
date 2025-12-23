@@ -53,48 +53,76 @@ export default function VolunteerHub() {
     }
   }, [isAuthenticated, user, loading, router]);
 
-  // Note: Removed periodic refresh to prevent donations from disappearing
-  // The donations will be loaded when location changes and when pickup status changes
-
-  // Find nearby donations when volunteer location changes
-  useEffect(() => {
-    if (volunteerLocation) {
-      setIsLoading(true);
+  // Function to refresh donations
+  const refreshDonations = () => {
+    setIsLoading(true);
+    
+    // Get all available donations (not just nearby ones)
+    setTimeout(() => {
+      const allDonations = donationStorage.getAllDonations();
+      // Show available, pending, and ordered donations (exclude picked, delivered, expired)
+      const availableDonations = allDonations.filter(d => 
+        d.status === 'available' || 
+        d.status === 'pending' || 
+        d.status === 'ordered'
+      );
       
-      // Get all available donations (not just nearby ones)
-      setTimeout(() => {
-        const allDonations = donationStorage.getAllDonations();
-        const pendingDonations = allDonations.filter(d => d.status === 'pending');
-        const orderedDonations = allDonations.filter(d => d.status === 'ordered');
-        
-        // Calculate distances for all donations
-        const pendingWithDistance = pendingDonations.map(d => ({
-          ...d,
-          distance: LocationService.calculateDistance(
+      // If volunteer location is set, calculate distances and check for address matches
+      if (volunteerLocation) {
+        const donationsWithDistance = availableDonations.map(d => {
+          const distance = LocationService.calculateDistance(
             volunteerLocation.lat,
             volunteerLocation.lng,
             d.location.lat,
             d.location.lng
-          )
-        }));
-        
-        const orderedWithDistance = orderedDonations.map(d => ({
-          ...d,
-          distance: LocationService.calculateDistance(
-            volunteerLocation.lat,
-            volunteerLocation.lng,
-            d.location.lat,
-            d.location.lng
-          )
-        }));
-        
-        // Combine all available donations
-        const allAvailable = [...pendingWithDistance, ...orderedWithDistance];
+          );
+          
+          // Check if addresses match (even if coordinates are different)
+          let addressMatch = false;
+          if (volunteerLocation.address && d.location?.address) {
+            addressMatch = LocationService.addressesMatch(
+              volunteerLocation.address,
+              d.location.address
+            );
+          }
+          
+          return {
+            ...d,
+            distance: addressMatch ? 0 : distance, // Set distance to 0 if addresses match
+            addressMatch // Flag to indicate address match
+          };
+        });
 
-        setNearbyDonations(allAvailable);
-        setIsLoading(false);
-      }, 500);
-    }
+        // Sort by address match first, then by distance
+        donationsWithDistance.sort((a, b) => {
+          if (a.addressMatch && !b.addressMatch) return -1;
+          if (!a.addressMatch && b.addressMatch) return 1;
+          return a.distance - b.distance;
+        });
+
+        setNearbyDonations(donationsWithDistance);
+      } else {
+        // If no location set, show all donations without distance
+        setNearbyDonations(availableDonations.map(d => ({
+          ...d,
+          distance: 999 // Large distance to indicate location not set
+        })));
+      }
+      
+      setIsLoading(false);
+    }, 300);
+  };
+
+  // Load donations on mount and when location changes
+  useEffect(() => {
+    refreshDonations();
+    
+    // Set up auto-refresh every 5 seconds to catch new donations
+    const refreshInterval = setInterval(() => {
+      refreshDonations();
+    }, 5000);
+    
+    return () => clearInterval(refreshInterval);
   }, [volunteerLocation]);
 
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,23 +140,11 @@ export default function VolunteerHub() {
     setError(null);
 
     try {
-      // For testing purposes, if user types "mississippi" or similar, use the test coordinates
-      const lowerAddress = addressInput.toLowerCase();
-      let location: Location;
-
-      if (lowerAddress.includes('mississippi') || lowerAddress.includes('ms')) {
-        location = {
-          lat: 33.1581,
-          lng: -89.7452,
-          address: 'Mississippi, USA',
-          city: 'Mississippi',
-          state: 'MS',
-          country: 'USA'
-        };
-      } else {
-        // Use the location service for other addresses
-        location = await LocationService.geocodeAddress(addressInput);
-      }
+      // Always use LocationService for consistent geocoding
+      // This ensures the same address gets the same coordinates
+      const location = await LocationService.geocodeAddress(addressInput);
+      // Preserve the original typed address
+      location.address = addressInput.trim();
 
       setVolunteerLocation(location);
       setAddressInput(location.address);
@@ -180,6 +196,18 @@ export default function VolunteerHub() {
   };
 
   const handlePickupDonation = async (donation: Donation) => {
+    // Safety check: Only allow pickup for available, pending, or ordered donations
+    // Prevent automatic pickup - only allow manual button clicks
+    if (donation.status !== 'available' && donation.status !== 'pending' && donation.status !== 'ordered') {
+      console.warn('Cannot pick up donation with status:', donation.status);
+      return;
+    }
+    
+    // Prevent if already picking another donation
+    if (pickupStatus === 'picking') {
+      return;
+    }
+    
     setSelectedDonation(donation);
     setPickupStatus('picking');
 
@@ -187,24 +215,40 @@ export default function VolunteerHub() {
       // Simulate pickup process
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Update donation status in storage
-      donationStorage.updateDonation(donation.id, { status: 'picked' });
+      // Update donation status in storage - when volunteer picks up, status becomes 'picked'
+      donationStorage.updateDonation(donation.id, { 
+        status: 'picked',
+        volunteerId: user?.id,
+        volunteerName: user?.name || 'Volunteer',
+        updatedAt: new Date()
+      });
       
       // Update local state
       setNearbyDonations(prev => 
         prev.map(d => 
           d.id === donation.id 
-            ? { ...d, status: 'picked' as any }
+            ? { ...d, status: 'picked' as any, volunteerId: user?.id, volunteerName: user?.name }
             : d
         )
       );
       
       setPickupStatus('success');
       
+      // Show success message with delivery info if NGO requested
+      if (donation.ngoName) {
+        setTimeout(() => {
+          alert(`Successfully picked up! Please deliver to ${donation.ngoName}. Check the delivery address in your deliveries page.`);
+        }, 100);
+      }
+      
       // Reset after 3 seconds
       setTimeout(() => {
         setPickupStatus('idle');
         setSelectedDonation(null);
+        // Refresh donations to remove picked ones
+        if (volunteerLocation) {
+          refreshDonations();
+        }
       }, 3000);
     } catch (error) {
       setPickupStatus('error');
@@ -222,53 +266,25 @@ export default function VolunteerHub() {
     return { status: 'fresh', color: 'text-green-600', bg: 'bg-green-50' };
   };
 
-  const refreshDonations = () => {
-    if (volunteerLocation) {
-      setIsLoading(true);
-      
-      // Get all available donations (not just nearby ones)
-      setTimeout(() => {
-        const allDonations = donationStorage.getAllDonations();
-        const pendingDonations = allDonations.filter(d => d.status === 'pending');
-        const orderedDonations = allDonations.filter(d => d.status === 'ordered');
-        
-        // Calculate distances for all donations
-        const pendingWithDistance = pendingDonations.map(d => ({
-          ...d,
-          distance: LocationService.calculateDistance(
-            volunteerLocation.lat,
-            volunteerLocation.lng,
-            d.location.lat,
-            d.location.lng
-          )
-        }));
-        
-        const orderedWithDistance = orderedDonations.map(d => ({
-          ...d,
-          distance: LocationService.calculateDistance(
-            volunteerLocation.lat,
-            volunteerLocation.lng,
-            d.location.lat,
-            d.location.lng
-          )
-        }));
-        
-        // Combine all available donations
-        const allAvailable = [...pendingWithDistance, ...orderedWithDistance];
-
-        setNearbyDonations(allAvailable);
-        setIsLoading(false);
-      }, 500);
-    }
-  };
-
   // Filter donations based on search term and location
   const filteredDonations = nearbyDonations.filter(donation => {
     const matchesSearch = donation.foodType.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          donation.donorName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLocation = !filterLocation || 
-                           donation.location.address.toLowerCase().includes(filterLocation.toLowerCase()) ||
-                           donation.location.city.toLowerCase().includes(filterLocation.toLowerCase());
+    
+    // Enhanced location matching - check address similarity
+    let matchesLocation = true;
+    if (filterLocation) {
+      const filterLower = filterLocation.toLowerCase();
+      const donationAddress = donation.location?.address?.toLowerCase() || '';
+      const donationCity = donation.location?.city?.toLowerCase() || '';
+      
+      // Check if filter location matches donation address (fuzzy matching)
+      matchesLocation = 
+        donationAddress.includes(filterLower) ||
+        donationCity.includes(filterLower) ||
+        LocationService.addressesMatch(filterLocation, donation.location?.address || '');
+    }
+    
     return matchesSearch && matchesLocation;
   });
 
@@ -424,7 +440,7 @@ export default function VolunteerHub() {
                          type="text"
                          value={searchTerm}
                          onChange={(e) => setSearchTerm(e.target.value)}
-                         placeholder="Search food or donor..."
+                         placeholder="Search food, donor, or location..."
                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                        />
                      </div>
@@ -553,29 +569,64 @@ export default function VolunteerHub() {
                               </span>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                                <Package className="w-4 h-4" />
-                                <span>{donation.quantity} {donation.unit}</span>
+                            {/* Pickup Location (Donor) */}
+                            <div className={`${(donation as any).addressMatch ? 'bg-green-100 border-2 border-green-400' : 'bg-green-50 border border-green-200'} rounded-md p-3 mb-3`}>
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center text-sm font-medium text-green-900">
+                                  <MapPin className="flex-shrink-0 mr-1.5 h-4 w-4" />
+                                  <span>Pickup From (Donor)</span>
+                                </div>
+                                {(donation as any).addressMatch && (
+                                  <span className="px-2 py-1 text-xs font-medium bg-green-600 text-white rounded-full">
+                                    Address Match!
+                                  </span>
+                                )}
                               </div>
-                              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                                <Users className="w-4 h-4" />
-                                <span>{donation.donorName}</span>
-                              </div>
-                              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                                <Calendar className="w-4 h-4" />
-                                <span>Expires: {formatDate(donation.expiry)}</span>
-                              </div>
-                              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                                <Clock className="w-4 h-4" />
-                                <span>Created: {formatDate(donation.createdAt)}</span>
+                              <div className="text-sm text-green-700 ml-6">
+                                <div className="font-medium">{donation.donorName || 'Donor'}</div>
+                                <div className="font-semibold">{donation.location.address}</div>
+                                <div className="mt-1 flex items-center space-x-4">
+                                  <span className="flex items-center space-x-1">
+                                    <Package className="w-3 h-3" />
+                                    <span>{donation.quantity} {donation.unit}</span>
+                                  </span>
+                                  {(donation as any).addressMatch ? (
+                                    <span className="flex items-center space-x-1 text-green-800 font-medium">
+                                      <CheckCircle className="w-3 h-3" />
+                                      <span>Same Location</span>
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center space-x-1">
+                                      <Navigation className="w-3 h-3" />
+                                      <span>{LocationService.formatDistance(donation.distance)} away</span>
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
 
-                            <div className="flex items-center space-x-4 mb-4">
-                              <div className="flex items-center space-x-2 text-sm text-blue-600">
-                                <Navigation className="w-4 h-4" />
-                                <span>{LocationService.formatDistance(donation.distance)} away</span>
+                            {/* Delivery Location (NGO) - Only show if NGO has requested */}
+                            {(donation.ngoName || donation.status === 'ordered' || donation.status === 'pending') && (
+                              <div className="bg-purple-50 border border-purple-200 rounded-md p-3 mb-3">
+                                <div className="flex items-center text-sm font-medium text-purple-900 mb-1">
+                                  <Truck className="flex-shrink-0 mr-1.5 h-4 w-4" />
+                                  <span>Deliver To (NGO)</span>
+                                </div>
+                                <div className="text-sm text-purple-700 ml-6">
+                                  <div className="font-medium">{donation.ngoName || 'NGO Organization'}</div>
+                                  {donation.ngoLocation ? (
+                                    <div className="font-semibold">{donation.ngoLocation.address}</div>
+                                  ) : (
+                                    <div className="text-gray-500 text-sm">NGO location not set - Contact NGO for delivery address</div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                                <Calendar className="w-4 h-4" />
+                                <span>Expires: {formatDate(donation.expiry)}</span>
                               </div>
                               <div className="flex items-center space-x-2 text-sm text-gray-600">
                                 <Clock className="w-4 h-4" />
@@ -586,47 +637,49 @@ export default function VolunteerHub() {
                             {donation.description && (
                               <p className="text-sm text-gray-600 mb-4">{donation.description}</p>
                             )}
-
-                            <div className="flex items-center space-x-2 text-sm text-gray-500">
-                              <MapPin className="w-4 h-4" />
-                              <span>{donation.location.address}</span>
-                            </div>
                           </div>
 
                           <div className="ml-4">
-                            <button
-                              onClick={() => handlePickupDonation(donation)}
-                              disabled={donation.status !== 'pending' && donation.status !== 'ordered' || pickupStatus === 'picking'}
-                              className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${
-                                donation.status === 'pending' || donation.status === 'ordered'
-                                  ? donation.status === 'ordered' 
-                                    ? 'bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50'
-                                    : 'bg-green-600 text-white hover:bg-green-700 disabled:opacity-50'
-                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              }`}
-                            >
-                              {pickupStatus === 'picking' && selectedDonation?.id === donation.id ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  <span>Picking...</span>
-                                </>
-                              ) : donation.status === 'pending' ? (
-                                <>
-                                  <Truck className="w-4 h-4" />
-                                  <span>Pick Up</span>
-                                </>
-                              ) : donation.status === 'ordered' ? (
-                                <>
-                                  <ShoppingCart className="w-4 h-4" />
-                                  <span>Pick Up Order</span>
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle className="w-4 h-4" />
-                                  <span>Picked</span>
-                                </>
-                              )}
-                            </button>
+                            {/* Only show pickup button for available, pending, or ordered donations */}
+                            {(donation.status === 'available' || donation.status === 'pending' || donation.status === 'ordered') && (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handlePickupDonation(donation);
+                                }}
+                                disabled={pickupStatus === 'picking'}
+                                className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${
+                                  donation.status === 'ordered' 
+                                    ? 'bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                                    : 'bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                                }`}
+                              >
+                                {pickupStatus === 'picking' && selectedDonation?.id === donation.id ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span>Picking...</span>
+                                  </>
+                                ) : donation.status === 'ordered' ? (
+                                  <>
+                                    <ShoppingCart className="w-4 h-4" />
+                                    <span>Accept Delivery Mission</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Truck className="w-4 h-4" />
+                                    <span>Pick Up</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+                            {/* Show status for already picked donations */}
+                            {donation.status === 'picked' && (
+                              <div className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg flex items-center space-x-2">
+                                <CheckCircle className="w-4 h-4" />
+                                <span>Already Picked</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </motion.div>

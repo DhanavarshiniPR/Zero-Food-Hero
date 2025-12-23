@@ -1,15 +1,46 @@
 import { Donation } from '@/app/types';
 import { generateQRCode } from './utils';
+import { LocationService } from './location-service';
+
+// Helper function to safely access localStorage
+const safeLocalStorage = {
+  getItem: (key: string): string | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return window.localStorage.getItem(key);
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(key, value);
+    } catch (error) {
+      console.error('Error setting localStorage:', error);
+    }
+  },
+  removeItem: (key: string): void => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.removeItem(key);
+    } catch (error) {
+      console.error('Error removing from localStorage:', error);
+    }
+  }
+};
 
 class DonationStorageService {
   private readonly STORAGE_KEY = 'zeroFoodHero_donations';
+  private inMemoryStorage: Record<string, string> = {};
 
   // Get all stored donations
   private getStoredDonations(): Donation[] {
     if (typeof window === 'undefined') return [];
     
     try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
+      const stored = safeLocalStorage.getItem(this.STORAGE_KEY);
       if (!stored) return [];
       
       const donations = JSON.parse(stored);
@@ -35,13 +66,56 @@ class DonationStorageService {
 
   // Save all donations to storage
   private saveDonations(donations: Donation[]): void {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(donations));
+    try {
+      // Ensure we're only saving serializable data
+      const serializableDonations = donations.map(donation => ({
+        ...donation,
+        // Convert Date objects to ISO strings for serialization
+        createdAt: donation.createdAt.toISOString(),
+        updatedAt: donation.updatedAt.toISOString(),
+        expiry: donation.expiry ? donation.expiry.toISOString() : null,
+        // Ensure any other Date objects are also converted
+        ...(donation.pickupTime && { pickupTime: donation.pickupTime.toISOString() })
+      }));
+      
+      safeLocalStorage.setItem(this.STORAGE_KEY, JSON.stringify(serializableDonations));
+    } catch (error) {
+      console.error('Error saving donations:', error);
+    }
   }
 
-  // Get all donations
+  // Get all donations (automatically removes expired ones)
   public getAllDonations(): Donation[] {
-    return this.getStoredDonations();
+    const donations = this.getStoredDonations();
+    const now = new Date();
+    
+    // Filter out expired donations and update their status
+    const validDonations: Donation[] = [];
+    let hasExpired = false;
+    
+    donations.forEach(donation => {
+      const expiryDate = new Date(donation.expiry);
+      if (expiryDate < now && donation.status === 'available') {
+        // Auto-expire available donations
+        donation.status = 'expired';
+        hasExpired = true;
+      }
+      
+      // Only return non-expired donations (or expired ones that are already in transit/delivered)
+      if (donation.status !== 'expired' || 
+          donation.status === 'in_transit' || 
+          donation.status === 'picked' || 
+          donation.status === 'delivered') {
+        validDonations.push(donation);
+      }
+    });
+    
+    // Save updated donations if any expired
+    if (hasExpired) {
+      this.saveDonations(donations);
+    }
+    
+    return validDonations;
   }
 
   // Get donations by status
@@ -91,8 +165,8 @@ class DonationStorageService {
     return donations.find(d => d.id === donationId) || null;
   }
 
-  // Get nearby donations (within specified radius in km)
-  public getNearbyDonations(lat: number, lng: number, radiusKm: number = 10): Donation[] {
+  // Get nearby donations (within specified radius in km or by address match)
+  public getNearbyDonations(lat: number, lng: number, radiusKm: number = 10, address?: string): Donation[] {
     const donations = this.getStoredDonations();
     
     return donations
@@ -100,8 +174,27 @@ class DonationStorageService {
         ...donation,
         distance: this.calculateDistance(lat, lng, donation.location.lat, donation.location.lng)
       }))
-      .filter(donation => donation.distance <= radiusKm)
+      .filter(donation => {
+        // If address is provided, also check for address matching
+        if (address && donation.location?.address) {
+          if (LocationService.addressesMatch(address, donation.location.address)) {
+            return true; // Match by address even if outside radius
+          }
+        }
+        // Otherwise filter by distance
+        return donation.distance <= radiusKm;
+      })
       .sort((a, b) => a.distance - b.distance);
+  }
+
+  // Get donations by address (fuzzy matching)
+  public getDonationsByAddress(searchAddress: string): Donation[] {
+    const donations = this.getStoredDonations();
+    
+    return donations.filter(donation => {
+      if (!donation.location?.address) return false;
+      return LocationService.addressesMatch(searchAddress, donation.location.address);
+    });
   }
 
   // Calculate distance between two points using Haversine formula

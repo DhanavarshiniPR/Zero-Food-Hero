@@ -1,6 +1,6 @@
 export type UserRole = 'donor' | 'volunteer' | 'ngo';
 
-export type DonationStatus = 'pending' | 'picked' | 'delivered' | 'expired';
+export type DonationStatus = 'pending' | 'picked' | 'delivered' | 'expired' | 'available' | 'in_transit' | 'ordered';
 
 export type FoodCategory = 
   | 'bread' 
@@ -34,11 +34,17 @@ export interface Donation {
   donorId: string;
   donorName: string;
   volunteerId?: string;
+  volunteerName?: string;
   ngoId?: string;
   ngoName?: string;
+  ngoLocation?: {  // NGO's delivery location (where volunteer should deliver)
+    lat: number;
+    lng: number;
+    address: string;
+  };
   imageUrl?: string;
   description?: string;
-  location: {
+  location: {  // Donor's pickup location (where volunteer picks up)
     lat: number;
     lng: number;
     address: string;

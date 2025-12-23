@@ -33,7 +33,7 @@ import QRCode from 'react-qr-code';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import LocationPicker from '@/app/components/LocationPicker';
-import { Location } from '@/app/lib/location-service';
+import { Location, LocationService } from '@/app/lib/location-service';
 import { donationStorage } from '@/app/lib/donation-storage';
 import { useAuth } from '@/app/contexts/AuthContext';
 import ImpactDashboard from '@/app/components/ImpactDashboard';
@@ -46,6 +46,8 @@ export default function DonorDashboard() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { addNotification } = useNotifications();
   const router = useRouter();
+  
+  // State
   const [donations, setDonations] = useState<Donation[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isClassifying, setIsClassifying] = useState(false);
@@ -79,9 +81,12 @@ export default function DonorDashboard() {
         donationStorage.updateQRCodes();
         const storedDonations = donationStorage.getDonationsByDonor(user.id);
         setDonations(storedDonations);
-      } catch (error) {
-        console.error('Error loading donations:', error);
-        setError('Failed to load donations. Please refresh the page.');
+        setError(null);
+      } catch (err) {
+        console.error('Error loading donations:', err);
+        setError('Failed to load donations. Please try again.');
+      } finally {
+        setIsLoading(false);
       }
     }
   }, [user]);
@@ -110,14 +115,15 @@ export default function DonorDashboard() {
         id: donationId,
         imageUrl: URL.createObjectURL(compressedFile),
         createdAt: new Date(),
-        status: 'pending',
+        status: 'available', // Set to 'available' so it shows up in volunteer/NGO pages
         donorId: user?.id || 'unknown',
         donorName: user?.name || 'Unknown Donor',
         location: {
           lat: 40.7128,
           lng: -74.0060,
           address: 'New York, NY'
-        }
+        },
+        updatedAt: new Date()
       };
 
       setCurrentDonation(donation);
@@ -184,16 +190,45 @@ export default function DonorDashboard() {
       currentDonation.expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     }
 
+    // Accept location even if just address is provided (coordinates will be generated)
     if (!currentDonation.location || !currentDonation.location.address) {
-      alert('Please select a pickup location.');
+      alert('Please enter a pickup location address.');
       return;
     }
 
+    // Ensure location has coordinates (generate if missing)
+    if (!currentDonation.location.lat || !currentDonation.location.lng) {
+      const coords = LocationService.generateCoordinatesFromAddress(currentDonation.location.address);
+      currentDonation.location.lat = coords.lat;
+      currentDonation.location.lng = coords.lng;
+    }
+
     try {
+      // Ensure all required fields are set
       const donation: Donation = {
         ...currentDonation as Donation,
-        updatedAt: new Date()
+        id: currentDonation.id || generateDonationId(),
+        status: (currentDonation.status as any) || 'available', // Default to 'available'
+        donorId: user?.id || currentDonation.donorId || 'unknown',
+        donorName: user?.name || currentDonation.donorName || 'Unknown Donor',
+        createdAt: currentDonation.createdAt || new Date(),
+        updatedAt: new Date(),
+        foodCategory: currentDonation.foodCategory || 'other',
+        quantity: currentDonation.quantity || 1,
+        unit: currentDonation.unit || 'serving',
+        expiry: currentDonation.expiry || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        qrCode: currentDonation.qrCode || generateQRCode(currentDonation.id || generateDonationId())
       };
+
+      // Ensure location has all required fields
+      if (!donation.location) {
+        throw new Error('Location is required');
+      }
+      if (!donation.location.lat || !donation.location.lng) {
+        const coords = LocationService.generateCoordinatesFromAddress(donation.location.address);
+        donation.location.lat = coords.lat;
+        donation.location.lng = coords.lng;
+      }
 
       donationStorage.addDonation(donation);
       setDonations(prev => [donation, ...prev]);
@@ -595,12 +630,29 @@ export default function DonorDashboard() {
                           )}
                         </div>
 
-                        <button
-                          onClick={() => handleDeleteDonation(donation.id)}
-                          className="text-gray-400 hover:text-red-600 p-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center space-x-2">
+                          {donation.status === 'available' && (
+                            <button
+                              onClick={() => {
+                                // Cancel donation by updating status
+                                donationStorage.updateDonation(donation.id, { status: 'expired' });
+                                setDonations(prev => prev.filter(d => d.id !== donation.id));
+                                alert('Donation cancelled successfully');
+                              }}
+                              className="text-gray-400 hover:text-yellow-600 p-1"
+                              title="Cancel donation"
+                            >
+                              <AlertCircle className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteDonation(donation.id)}
+                            className="text-gray-400 hover:text-red-600 p-1"
+                            title="Delete donation"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}

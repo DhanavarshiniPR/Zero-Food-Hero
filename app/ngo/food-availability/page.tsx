@@ -49,38 +49,72 @@ export default function NGOFoodAvailability() {
         console.error('Error parsing saved location:', error);
       }
     }
+    
+    // Load donations immediately on mount
+    loadAvailableDonations();
+    
+    // Set up auto-refresh every 5 seconds to catch new donations
+    const refreshInterval = setInterval(() => {
+      loadAvailableDonations();
+    }, 5000);
+    
+    return () => clearInterval(refreshInterval);
   }, []);
 
   // Load available donations when location changes
   useEffect(() => {
-    if (ngoLocation) {
-      loadAvailableDonations();
-    }
+    loadAvailableDonations();
   }, [ngoLocation]);
 
   const loadAvailableDonations = () => {
     setIsLoading(true);
     
-    // Get all pending donations from storage (not filtered by location)
+    // Get all available donations from storage (not filtered by location)
     const allDonations = donationStorage.getAllDonations();
-    const pending = allDonations.filter(d => d.status === 'pending');
+    // Show available donations (new donations from donors) and pending/ordered ones
+    const available = allDonations.filter(d => 
+      d.status === 'available' || 
+      d.status === 'pending' || 
+      d.status === 'ordered'
+    );
     
     // Calculate distances if NGO location is available
     if (ngoLocation) {
-      const withDistance = pending.map(donation => ({
-        ...donation,
-        distance: LocationService.calculateDistance(
+      const withDistance = available.map(donation => {
+        const distance = LocationService.calculateDistance(
           ngoLocation.lat,
           ngoLocation.lng,
           donation.location.lat,
           donation.location.lng
-        )
-      }));
+        );
+        
+        // Check if addresses match (even if coordinates are different)
+        let addressMatch = false;
+        if (ngoLocation.address && donation.location?.address) {
+          addressMatch = LocationService.addressesMatch(
+            ngoLocation.address,
+            donation.location.address
+          );
+        }
+        
+        return {
+          ...donation,
+          distance: addressMatch ? 0 : distance, // Set distance to 0 if addresses match
+          addressMatch // Flag to indicate address match
+        };
+      });
+      
+      // Sort by address match first, then by distance
+      withDistance.sort((a, b) => {
+        if (a.addressMatch && !b.addressMatch) return -1;
+        if (!a.addressMatch && b.addressMatch) return 1;
+        return a.distance - b.distance;
+      });
       
       setAvailableDonations(withDistance);
     } else {
       // If no NGO location set, show all donations without distance
-      setAvailableDonations(pending.map(donation => ({
+      setAvailableDonations(available.map(donation => ({
         ...donation,
         distance: 0 // Will be calculated when location is set
       })));
@@ -202,9 +236,22 @@ export default function NGOFoodAvailability() {
       existingOrders.push(order);
       localStorage.setItem('ngoOrders', JSON.stringify(existingOrders));
 
-      // Update donation status to 'ordered'
+      // Update donation status to 'ordered' and save NGO info with delivery location
       Object.keys(selectedDonations).forEach(donationId => {
-        donationStorage.updateDonation(donationId, { status: 'ordered' });
+        const donation = availableDonations.find(d => d.id === donationId);
+        if (donation && ngoLocation) {
+          donationStorage.updateDonation(donationId, { 
+            status: 'ordered',
+            ngoId: user?.id,
+            ngoName: user?.name || 'NGO',
+            ngoLocation: {
+              lat: ngoLocation.lat,
+              lng: ngoLocation.lng,
+              address: ngoLocation.address
+            },
+            updatedAt: new Date()
+          });
+        }
       });
 
       setSelectedDonations({});
@@ -232,8 +279,10 @@ export default function NGOFoodAvailability() {
   };
 
   const filteredDonations = availableDonations.filter(donation => {
-    const matchesSearch = donation.foodType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         donation.donorName.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = donation.foodType.toLowerCase().includes(searchLower) ||
+                         donation.donorName.toLowerCase().includes(searchLower) ||
+                         (donation.location?.address?.toLowerCase().includes(searchLower) || false);
     const matchesCategory = filterCategory === 'all' || donation.foodCategory === filterCategory;
     return matchesSearch && matchesCategory;
   });
@@ -250,9 +299,20 @@ export default function NGOFoodAvailability() {
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Food Availability</h1>
               <p className="text-gray-600">Browse and order available food donations for your organization</p>
             </div>
-            <div className="flex items-center space-x-2">
-              <ShoppingCart className="w-6 h-6 text-purple-600" />
-              <span className="text-sm text-gray-600">NGO Portal</span>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={loadAvailableDonations}
+                disabled={isLoading}
+                className="flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                title="Refresh donations"
+              >
+                <Search className="w-4 h-4 mr-2" />
+                {isLoading ? 'Loading...' : 'Refresh'}
+              </button>
+              <div className="flex items-center space-x-2">
+                <ShoppingCart className="w-6 h-6 text-purple-600" />
+                <span className="text-sm text-gray-600">NGO Portal</span>
+              </div>
             </div>
           </div>
         </div>
@@ -329,7 +389,7 @@ export default function NGOFoodAvailability() {
                       type="text"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search food or donor..."
+                      placeholder="Search food, donor, or location (e.g., Coimbatore)..."
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                   </div>
